@@ -39,6 +39,8 @@
 
 DEFINE_double(resolution, 0.05,
               "Resolution of a grid cell in the published occupancy grid.");
+DEFINE_bool(publish_ros_map, false,
+            "Activates publishing ros using the trinary format [-1|0|100]");
 DEFINE_double(publish_period_sec, 1.0, "OccupancyGrid publishing period.");
 DEFINE_bool(include_frozen_submaps, true,
             "Include frozen submaps in the occupancy grid.");
@@ -56,7 +58,7 @@ using ::cartographer::mapping::SubmapId;
 
 class Node {
  public:
-  explicit Node(double resolution, double publish_period_sec);
+  explicit Node(double resolution, double publish_period_sec, bool publish_ros_map);
   ~Node() {}
 
   Node(const Node&) = delete;
@@ -68,6 +70,7 @@ class Node {
 
   ::ros::NodeHandle node_handle_;
   const double resolution_;
+  const bool publish_ros_map_;
 
   absl::Mutex mutex_;
   ::ros::ServiceClient client_ GUARDED_BY(mutex_);
@@ -79,8 +82,9 @@ class Node {
   ros::Time last_timestamp_;
 };
 
-Node::Node(const double resolution, const double publish_period_sec)
+Node::Node(const double resolution, const double publish_period_sec, const bool publish_ros_map)
     : resolution_(resolution),
+      publish_ros_map_(publish_ros_map),
       client_(node_handle_.serviceClient<::cartographer_ros_msgs::SubmapQuery>(
           kSubmapQueryServiceName)),
       submap_list_subscriber_(node_handle_.subscribe(
@@ -167,7 +171,7 @@ void Node::DrawAndPublish(const ::ros::WallTimerEvent& unused_timer_event) {
   }
   auto painted_slices = PaintSubmapSlices(submap_slices_, resolution_);
   std::unique_ptr<nav_msgs::OccupancyGrid> msg_ptr = CreateOccupancyGridMsg(
-      painted_slices, resolution_, last_frame_id_, last_timestamp_);
+      painted_slices, resolution_, last_frame_id_, last_timestamp_, publish_ros_map_);
   occupancy_grid_publisher_.publish(*msg_ptr);
 }
 
@@ -185,7 +189,7 @@ int main(int argc, char** argv) {
   ::ros::start();
 
   cartographer_ros::ScopedRosLogSink ros_log_sink;
-  ::cartographer_ros::Node node(FLAGS_resolution, FLAGS_publish_period_sec);
+  ::cartographer_ros::Node node(FLAGS_resolution, FLAGS_publish_period_sec, FLAGS_publish_ros_map);
 
   ::ros::spin();
   ::ros::shutdown();

@@ -58,7 +58,7 @@ class Node {
  public:
   Node(const NodeOptions& node_options,
        std::unique_ptr<cartographer::mapping::MapBuilderInterface> map_builder,
-       tf2_ros::Buffer* tf_buffer, bool collect_metrics, double transform_tolerance);
+       tf2_ros::Buffer* tf_buffer, bool collect_metrics, double transform_tolerance = 0.15);
   ~Node();
 
   Node(const Node&) = delete;
